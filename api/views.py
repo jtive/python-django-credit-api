@@ -167,14 +167,25 @@ def readiness_check(request):
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
 
+        # Get basic statistics - handle case where tables don't exist yet
+        try:
+            person_count = Person.objects.count()
+            address_count = Address.objects.count()
+            credit_card_count = CreditCard.objects.count()
+        except Exception:
+            # Tables don't exist yet (migrations not run)
+            person_count = 0
+            address_count = 0
+            credit_card_count = 0
+
         readiness_data = {
             "status": "ready",
             "timestamp": timezone.now(),
             "database": "connected",
             "statistics": {
-                "total_persons": Person.objects.count(),
-                "total_addresses": Address.objects.count(),
-                "total_credit_cards": CreditCard.objects.count(),
+                "total_persons": person_count,
+                "total_addresses": address_count,
+                "total_credit_cards": credit_card_count,
             },
         }
 
