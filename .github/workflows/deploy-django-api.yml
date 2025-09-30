@@ -1,4 +1,4 @@
-name: Deploy Django Personal Info API to AWS App Runner
+name: Test and Deploy Django Personal Info API
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - '**'
-      - '.github/workflows/deploy-django-api.yml'
+      - '!.github/workflows/test.yml'
 
 env:
   AWS_REGION: us-east-2

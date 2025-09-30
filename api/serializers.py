@@ -112,6 +112,7 @@ class CreditCardSerializer(serializers.ModelSerializer):
 class CreateCreditCardSerializer(serializers.ModelSerializer):
     card_number = serializers.CharField(
         max_length=19,
+        write_only=True,  # This field is only for input, not output
         validators=[
             RegexValidator(
                 regex=r"^\d{13,19}$",
@@ -141,6 +142,7 @@ class UpdateCreditCardSerializer(serializers.ModelSerializer):
     card_number = serializers.CharField(
         max_length=19,
         required=False,
+        write_only=True,  # This field is only for input, not output
         validators=[
             RegexValidator(
                 regex=r"^\d{13,19}$",

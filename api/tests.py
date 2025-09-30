@@ -6,6 +6,11 @@ from .models import Person, Address, CreditCard
 
 class PersonAPITestCase(APITestCase):
     def setUp(self):
+        # Clear all data before each test
+        Person.objects.all().delete()
+        Address.objects.all().delete()
+        CreditCard.objects.all().delete()
+        
         self.person_data = {
             "first_name": "John",
             "last_name": "Doe",
@@ -64,6 +69,11 @@ class PersonAPITestCase(APITestCase):
 
 class AddressAPITestCase(APITestCase):
     def setUp(self):
+        # Clear all data before each test
+        Person.objects.all().delete()
+        Address.objects.all().delete()
+        CreditCard.objects.all().delete()
+        
         self.person = Person.objects.create(
             first_name="John",
             last_name="Doe",
@@ -117,6 +127,11 @@ class AddressAPITestCase(APITestCase):
 
 class CreditCardAPITestCase(APITestCase):
     def setUp(self):
+        # Clear all data before each test
+        Person.objects.all().delete()
+        Address.objects.all().delete()
+        CreditCard.objects.all().delete()
+        
         self.person = Person.objects.create(
             first_name="John",
             last_name="Doe",
@@ -165,6 +180,12 @@ class CreditCardAPITestCase(APITestCase):
 
 
 class HealthCheckTestCase(APITestCase):
+    def setUp(self):
+        # Clear all data before each test
+        Person.objects.all().delete()
+        Address.objects.all().delete()
+        CreditCard.objects.all().delete()
+    
     def test_health_check(self):
         """Test health check endpoint."""
         url = reverse("api:health-check")
