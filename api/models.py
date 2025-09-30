@@ -28,7 +28,9 @@ class Person(models.Model):
 
     class Meta:
         db_table = "api_person"
-        ordering = ['-created_at']  # Add default ordering to fix pagination warnings
+        ordering = [
+            "-created_at"
+        ]  # Add default ordering to fix pagination warnings
         constraints = [
             models.CheckConstraint(
                 check=models.Q(ssn__isnull=True)
@@ -75,7 +77,9 @@ class Address(models.Model):
 
     class Meta:
         db_table = "api_address"
-        ordering = ['-created_at']  # Add default ordering to fix pagination warnings
+        ordering = [
+            "-created_at"
+        ]  # Add default ordering to fix pagination warnings
 
     def __str__(self) -> str:
         return (
@@ -109,7 +113,9 @@ class CreditCard(models.Model):
 
     class Meta:
         db_table = "api_creditcard"
-        ordering = ['-created_at']  # Add default ordering to fix pagination warnings
+        ordering = [
+            "-created_at"
+        ]  # Add default ordering to fix pagination warnings
 
     def __str__(self) -> str:
         return f"{self.card_type} ****{self.last_four_digits}"

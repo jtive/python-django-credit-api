@@ -5,18 +5,25 @@ from .models import Person, Address, CreditCard
 
 
 class PersonAPITestCase(APITestCase):
-    def setUp(self):
-        # Clear all data before each test
-        Person.objects.all().delete()
-        Address.objects.all().delete()
-        CreditCard.objects.all().delete()
-        
-        self.person_data = {
+    @classmethod
+    def setUpTestData(cls):
+        # This runs once per test class
+        cls.person_data = {
             "first_name": "John",
             "last_name": "Doe",
             "birth_date": "1990-01-01",
             "ssn": "123456789",
         }
+
+    def setUp(self):
+        # Clear all data before each test method -
+        #  use raw SQL to ensure complete cleanup
+        from django.db import connection
+
+        with connection.cursor() as cursor:
+            cursor.execute("DELETE FROM api_creditcard")
+            cursor.execute("DELETE FROM api_address")
+            cursor.execute("DELETE FROM api_person")
 
     def test_create_person(self):
         """Test creating a new person."""
@@ -32,7 +39,7 @@ class PersonAPITestCase(APITestCase):
         url = reverse("api:person-list-create")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
 
     def test_get_person(self):
         """Test retrieving a specific person."""
@@ -68,18 +75,28 @@ class PersonAPITestCase(APITestCase):
 
 
 class AddressAPITestCase(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        # This runs once per test class
+        cls.person_data = {
+            "first_name": "John",
+            "last_name": "Doe",
+            "birth_date": "1990-01-01",
+            "ssn": "123456789",
+        }
+
     def setUp(self):
-        # Clear all data before each test
-        Person.objects.all().delete()
-        Address.objects.all().delete()
-        CreditCard.objects.all().delete()
-        
-        self.person = Person.objects.create(
-            first_name="John",
-            last_name="Doe",
-            birth_date="1990-01-01",
-            ssn="123456789",
-        )
+        # Clear all data before each test method -
+        #  use raw SQL to ensure complete cleanup
+        from django.db import connection
+
+        with connection.cursor() as cursor:
+            cursor.execute("DELETE FROM api_creditcard")
+            cursor.execute("DELETE FROM api_address")
+            cursor.execute("DELETE FROM api_person")
+
+        # Create fresh person for each test
+        self.person = Person.objects.create(**self.person_data)
         self.address_data = {
             "address_type": "Home",
             "street_address": "123 Main St",
@@ -108,10 +125,12 @@ class AddressAPITestCase(APITestCase):
         )
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
         # Check that address is masked
-        self.assertTrue(response.data[0]["street_address"].startswith("12"))
-        self.assertTrue("*" in response.data[0]["street_address"])
+        self.assertTrue(
+            response.data["results"][0]["street_address"].startswith("12")
+        )
+        self.assertTrue("*" in response.data["results"][0]["street_address"])
 
     def test_get_unmasked_address(self):
         """Test getting unmasked address."""
@@ -126,18 +145,28 @@ class AddressAPITestCase(APITestCase):
 
 
 class CreditCardAPITestCase(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        # This runs once per test class
+        cls.person_data = {
+            "first_name": "John",
+            "last_name": "Doe",
+            "birth_date": "1990-01-01",
+            "ssn": "123456789",
+        }
+
     def setUp(self):
-        # Clear all data before each test
-        Person.objects.all().delete()
-        Address.objects.all().delete()
-        CreditCard.objects.all().delete()
-        
-        self.person = Person.objects.create(
-            first_name="John",
-            last_name="Doe",
-            birth_date="1990-01-01",
-            ssn="123456789",
-        )
+        # Clear all data before each test method - use
+        #  raw SQL to ensure complete cleanup
+        from django.db import connection
+
+        with connection.cursor() as cursor:
+            cursor.execute("DELETE FROM api_creditcard")
+            cursor.execute("DELETE FROM api_address")
+            cursor.execute("DELETE FROM api_person")
+
+        # Create fresh person for each test
+        self.person = Person.objects.create(**self.person_data)
         self.credit_card_data = {
             "card_type": "Visa",
             "card_number": "4111111111111111",
@@ -172,20 +201,24 @@ class CreditCardAPITestCase(APITestCase):
         )
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
         # Check that credit card is masked
         self.assertTrue(
-            response.data[0]["last_four_digits"].startswith("****")
+            response.data["results"][0]["last_four_digits"].startswith("****")
         )
 
 
 class HealthCheckTestCase(APITestCase):
     def setUp(self):
-        # Clear all data before each test
-        Person.objects.all().delete()
-        Address.objects.all().delete()
-        CreditCard.objects.all().delete()
-    
+        # Clear all data before each test - use
+        #  raw SQL to ensure complete cleanup
+        from django.db import connection
+
+        with connection.cursor() as cursor:
+            cursor.execute("DELETE FROM api_creditcard")
+            cursor.execute("DELETE FROM api_address")
+            cursor.execute("DELETE FROM api_person")
+
     def test_health_check(self):
         """Test health check endpoint."""
         url = reverse("api:health-check")

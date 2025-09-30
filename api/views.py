@@ -160,14 +160,14 @@ def readiness_check(request):
             cursor.execute("SELECT 1")
 
         readiness_data = {
-            "status": "ready", 
+            "status": "ready",
             "timestamp": timezone.now(),
             "database": "connected",
             "statistics": {
                 "total_persons": Person.objects.count(),
                 "total_addresses": Address.objects.count(),
                 "total_credit_cards": CreditCard.objects.count(),
-            }
+            },
         }
 
         serializer = HealthSerializer(readiness_data)
