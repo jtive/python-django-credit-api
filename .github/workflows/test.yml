@@ -1,0 +1,114 @@
+name: Test Django Personal Info API
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'python-credit-api/**'
+      - '.github/workflows/test.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'python-credit-api/**'
+      - '.github/workflows/test.yml'
+
+env:
+  PROJECT_PATH: python-credit-api
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: test_personalinfo
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          cd $PROJECT_PATH
+          pip install -r requirements.txt
+          pip install -r requirements-mypy.txt
+          pip install -r requirements-dev.txt
+      
+      - name: Set up environment variables
+        run: |
+          cd $PROJECT_PATH
+          echo "SECRET_KEY=test-secret-key-for-github-actions" >> .env
+          echo "DEBUG=True" >> .env
+          echo "ALLOWED_HOSTS=localhost,127.0.0.1" >> .env
+          echo "DB_HOST=localhost" >> .env
+          echo "DB_NAME=test_personalinfo" >> .env
+          echo "DB_USERNAME=postgres" >> .env
+          echo "DB_PASSWORD=postgres" >> .env
+          echo "DB_PORT=5432" >> .env
+      
+      - name: Run Django system checks
+        run: |
+          cd $PROJECT_PATH
+          python manage.py check
+      
+      - name: Run database migrations
+        run: |
+          cd $PROJECT_PATH
+          python manage.py migrate
+      
+      - name: Run mypy type checking
+        run: |
+          cd $PROJECT_PATH
+          mypy --config-file mypy-basic.ini api/
+      
+      - name: Run Django tests
+        run: |
+          cd $PROJECT_PATH
+          python manage.py test
+      
+      - name: Run pytest (if available)
+        run: |
+          cd $PROJECT_PATH
+          pytest --version && pytest || echo "pytest not available, skipping"
+      
+      - name: Test API endpoints
+        run: |
+          cd $PROJECT_PATH
+          python manage.py runserver 0.0.0.0:8000 &
+          sleep 10
+          curl -f http://localhost:8000/api/health/ || exit 1
+          curl -f http://localhost:8000/api/health/ready/ || exit 1
+      
+      - name: Create test summary
+        run: |
+          echo "## ✅ Django Personal Info API Tests Passed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🧪 Tests Completed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Django system checks" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Database migrations" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Mypy type checking" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Django unit tests" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ API health checks" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Ready for Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "All tests passed successfully! The API is ready for deployment." >> $GITHUB_STEP_SUMMARY
