@@ -119,10 +119,16 @@ def health_check(request):
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
 
-        # Get basic statistics
-        person_count = Person.objects.count()
-        address_count = Address.objects.count()
-        credit_card_count = CreditCard.objects.count()
+        # Get basic statistics - handle case where tables don't exist yet
+        try:
+            person_count = Person.objects.count()
+            address_count = Address.objects.count()
+            credit_card_count = CreditCard.objects.count()
+        except Exception:
+            # Tables don't exist yet (migrations not run)
+            person_count = 0
+            address_count = 0
+            credit_card_count = 0
 
         health_data = {
             "status": "healthy",
@@ -142,6 +148,8 @@ def health_check(request):
         health_data = {
             "status": "unhealthy",
             "timestamp": timezone.now(),
+            "database": "disconnected",
+            "statistics": {},
             "error": str(ex),
         }
 

@@ -96,6 +96,10 @@ jobs:
         run: |
           python manage.py test
       
+      - name: Run database migrations
+        run: |
+          python manage.py migrate
+      
       - name: Test API endpoints
         run: |
           python manage.py runserver 0.0.0.0:8000 &
