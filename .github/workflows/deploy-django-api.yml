@@ -1,4 +1,4 @@
-name: Test and Deploy Django Personal Info API
+name: Test and Build Django Personal Info API
 
 on:
   push:
@@ -11,7 +11,6 @@ on:
 env:
   AWS_REGION: us-east-2
   ECR_REPOSITORY: personal-info-django-api
-  SERVICE_NAME: personal-info-django-api
 
 jobs:
   type-check:
@@ -134,34 +133,9 @@ jobs:
       
       - name: Create ECR repository
         run: |
-          # Create Django API repository
+          # Create Django API repository if it doesn't exist
           aws ecr describe-repositories --repository-names $ECR_REPOSITORY --region $AWS_REGION || \
           aws ecr create-repository --repository-name $ECR_REPOSITORY --region $AWS_REGION
-          
-          # Set repository policy to allow App Runner access
-          ROLE_ARN="arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/AppRunnerECRAccessRole2"
-          
-          # Django API repository policy
-          aws ecr set-repository-policy \
-            --repository-name $ECR_REPOSITORY \
-            --region $AWS_REGION \
-            --policy-text '{
-              "Version": "2012-10-17",
-              "Statement": [
-                {
-                  "Sid": "AppRunnerAccess",
-                  "Effect": "Allow",
-                  "Principal": {
-                    "AWS": "'$ROLE_ARN'"
-                  },
-                  "Action": [
-                    "ecr:GetDownloadUrlForLayer",
-                    "ecr:BatchGetImage",
-                    "ecr:BatchCheckLayerAvailability"
-                  ]
-                }
-              ]
-            }' || echo "Django API repository policy already set"
       
       - name: Build and push Django API Docker image
         env:
@@ -174,126 +148,16 @@ jobs:
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
       
-      - name: Create or update App Runner service
-        run: |
-          # Check if App Runner service exists
-          SERVICE_EXISTS=$(aws apprunner describe-service --service-arn "arn:aws:apprunner:$AWS_REGION:${{ secrets.AWS_ACCOUNT_ID }}:service/$SERVICE_NAME" --region $AWS_REGION 2>/dev/null || echo "false")
-          
-          if [ "$SERVICE_EXISTS" = "false" ]; then
-            echo "Creating new App Runner service..."
-            
-            # Create App Runner service
-            aws apprunner create-service \
-              --service-name $SERVICE_NAME \
-              --region $AWS_REGION \
-              --source-configuration '{
-                "ImageRepository": {
-                  "ImageIdentifier": "'$ECR_REGISTRY/$ECR_REPOSITORY:latest'",
-                  "ImageConfiguration": {
-                    "Port": "8000",
-                    "RuntimeEnvironmentVariables": {
-                      "SECRET_KEY": "'${{ secrets.DJANGO_SECRET_KEY }}'",
-                      "DEBUG": "False",
-                      "ALLOWED_HOSTS": "*",
-                      "DB_HOST": "'${{ secrets.DB_HOST }}'",
-                      "DB_NAME": "'${{ secrets.DB_NAME }}'",
-                      "DB_USERNAME": "'${{ secrets.DB_USERNAME }}'",
-                      "DB_PASSWORD": "'${{ secrets.DB_PASSWORD }}'",
-                      "DB_PORT": "'${{ secrets.DB_PORT }}'"
-                    }
-                  },
-                  "ImageRepositoryType": "ECR"
-                },
-                "AutoDeploymentsEnabled": true
-              }' \
-              --instance-configuration '{
-                "Cpu": "0.25 vCPU",
-                "Memory": "0.5 GB"
-              }' \
-              --health-check-configuration '{
-                "Protocol": "HTTP",
-                "Path": "/api/health/",
-                "Interval": 10,
-                "Timeout": 5,
-                "HealthyThreshold": 1,
-                "UnhealthyThreshold": 5
-              }'
-          else
-            echo "Updating existing App Runner service..."
-            
-            # Update App Runner service
-            aws apprunner update-service \
-              --service-arn "arn:aws:apprunner:$AWS_REGION:${{ secrets.AWS_ACCOUNT_ID }}:service/$SERVICE_NAME" \
-              --region $AWS_REGION \
-              --source-configuration '{
-                "ImageRepository": {
-                  "ImageIdentifier": "'$ECR_REGISTRY/$ECR_REPOSITORY:latest'",
-                  "ImageConfiguration": {
-                    "Port": "8000",
-                    "RuntimeEnvironmentVariables": {
-                      "SECRET_KEY": "'${{ secrets.DJANGO_SECRET_KEY }}'",
-                      "DEBUG": "False",
-                      "ALLOWED_HOSTS": "*",
-                      "DB_HOST": "'${{ secrets.DB_HOST }}'",
-                      "DB_NAME": "'${{ secrets.DB_NAME }}'",
-                      "DB_USERNAME": "'${{ secrets.DB_USERNAME }}'",
-                      "DB_PASSWORD": "'${{ secrets.DB_PASSWORD }}'",
-                      "DB_PORT": "'${{ secrets.DB_PORT }}'"
-                    }
-                  },
-                  "ImageRepositoryType": "ECR"
-                },
-                "AutoDeploymentsEnabled": true
-              }'
-          fi
-      
-      - name: Wait for service to be ready
-        run: |
-          echo "Waiting for App Runner service to be ready..."
-          aws apprunner wait service-updated \
-            --service-arn "arn:aws:apprunner:$AWS_REGION:486151888818:service/$SERVICE_NAME" \
-            --region $AWS_REGION
-      
-      - name: Get service URL
-        id: get-url
-        run: |
-          SERVICE_URL=$(aws apprunner describe-service \
-            --service-arn "arn:aws:apprunner:$AWS_REGION:486151888818:service/$SERVICE_NAME" \
-            --region $AWS_REGION \
-            --query 'Service.ServiceUrl' \
-            --output text)
-          echo "service_url=$SERVICE_URL" >> $GITHUB_OUTPUT
-          echo "Service URL: $SERVICE_URL"
-      
-      - name: Run database migrations
-        run: |
-          # Get the service URL
-          SERVICE_URL=${{ steps.get-url.outputs.service_url }}
-          
-          # Wait a bit for the service to be fully ready
-          sleep 30
-          
-          # Run migrations using Django management command
-          # Note: This would typically be done as part of the container startup
-          echo "Database migrations should be handled in the container startup process"
-      
       - name: Create deployment summary
         run: |
-          SERVICE_URL=${{ steps.get-url.outputs.service_url }}
-          echo "## 🚀 Django Personal Info API Deployed Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Django Personal Info API Docker Image Built Successfully!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📦 Deployment Details" >> $GITHUB_STEP_SUMMARY
-          echo "- **Service Name:** \`$SERVICE_NAME\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Service URL:** [$SERVICE_URL]($SERVICE_URL)" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Build Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **ECR Repository:** \`$ECR_REPOSITORY\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Docker Image:** \`$ECR_REGISTRY/$ECR_REPOSITORY:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Tag:** \`$ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Region:** \`$AWS_REGION\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔗 API Endpoints" >> $GITHUB_STEP_SUMMARY
-          echo "- **Health Check:** [$SERVICE_URL/api/health/]($SERVICE_URL/api/health/)" >> $GITHUB_STEP_SUMMARY
-          echo "- **API Documentation:** [$SERVICE_URL/api/]($SERVICE_URL/api/)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Persons:** [$SERVICE_URL/api/person/]($SERVICE_URL/api/person/)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Addresses:** [$SERVICE_URL/api/address/]($SERVICE_URL/api/address/)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Credit Cards:** [$SERVICE_URL/api/creditcard/]($SERVICE_URL/api/creditcard/)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### ✅ Deployment Status" >> $GITHUB_STEP_SUMMARY
-          echo "The Django API has been successfully deployed to AWS App Runner and is ready to handle requests!" >> $GITHUB_STEP_SUMMARY
+          echo "### 🐳 Docker Image Ready" >> $GITHUB_STEP_SUMMARY
+          echo "The Django API Docker image has been successfully built and pushed to ECR!" >> $GITHUB_STEP_SUMMARY
+          echo "You can now manually deploy it to your preferred service (App Runner, ECS, etc.)." >> $GITHUB_STEP_SUMMARY
