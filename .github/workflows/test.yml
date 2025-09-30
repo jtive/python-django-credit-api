@@ -62,6 +62,7 @@ jobs:
           echo "DB_USERNAME=postgres" >> .env
           echo "DB_PASSWORD=postgres" >> .env
           echo "DB_PORT=5432" >> .env
+          echo "DB_SSLMODE=disable" >> .env
       
       - name: Run Django system checks
         run: |
